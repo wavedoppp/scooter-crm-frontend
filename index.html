@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Scooter CRM</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1c1c1e;
+    --card2: #2c2c2e;
+    --accent: #30d158;
+    --accent2: #0a84ff;
+    --red: #ff453a;
+    --yellow: #ffd60a;
+    --text: #ffffff;
+    --text2: #8e8e93;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; min-height: 100vh; }
+
+  /* NAV */
+  .nav { display: flex; background: var(--card); border-top: 1px solid #2c2c2e; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; }
+  .nav-btn { flex: 1; padding: 10px 0 14px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--text2); border: none; background: none; cursor: pointer; transition: color .2s; }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn .icon { font-size: 22px; }
+
+  /* PAGES */
+  .page { display: none; padding: 16px 16px 90px; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-row { display: flex; justify-content: space-between; align-items: center; }
+
+  /* HEADER STATS */
+  .hero { background: linear-gradient(135deg, #1a3a2a, #0d2018); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
+  .hero-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .hero-money { font-size: 36px; font-weight: 700; color: var(--accent); }
+  .hero-sub { font-size: 14px; color: var(--text2); margin-top: 8px; }
+
+  /* BUTTONS GRID */
+  .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .action-btn { background: var(--card); border: none; border-radius: var(--radius); padding: 16px 12px; text-align: left; cursor: pointer; transition: transform .1s, background .1s; active: scale(.97); }
+  .action-btn:active { transform: scale(.95); background: var(--card2); }
+  .action-btn .ab-emoji { font-size: 24px; }
+  .action-btn .ab-label { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 6px; }
+  .action-btn .ab-price { font-size: 12px; color: var(--accent); margin-top: 2px; }
+
+  /* PROGRESS */
+  .progress-bar { height: 8px; background: var(--card2); border-radius: 4px; overflow: hidden; margin: 8px 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; transition: width .4s ease; }
+
+  /* TODAY LIST */
+  .today-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #2c2c2e; }
+  .today-item:last-child { border-bottom: none; }
+  .today-emoji { font-size: 22px; width: 32px; text-align: center; }
+  .today-info { flex: 1; }
+  .today-name { font-size: 15px; font-weight: 500; }
+  .today-count { font-size: 13px; color: var(--text2); }
+  .today-money { font-size: 15px; font-weight: 600; color: var(--accent); }
+
+  /* HISTORY */
+  .day-block { background: var(--card); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .day-date { font-size: 15px; font-weight: 600; }
+  .day-total { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .day-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--text2); }
+  .day-row span:last-child { color: var(--text); }
+
+  /* WEEK CHART */
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: 0 4px; margin: 12px 0; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; background: var(--accent2); border-radius: 6px 6px 0 0; transition: height .4s ease; min-height: 4px; }
+  .bar.today-bar { background: var(--accent); }
+  .bar-label { font-size: 10px; color: var(--text2); }
+  .bar-val { font-size: 9px; color: var(--text2); }
+
+  /* STATS */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { background: var(--card); border-radius: var(--radius); padding: 16px; }
+  .stat-val { font-size: 24px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* ADD MANUAL */
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: flex-end; }
+  .modal.open { display: flex; }
+  .modal-sheet { background: var(--card); border-radius: 20px 20px 0 0; padding: 20px; width: 100%; }
+  .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+  .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .modal-act-btn { background: var(--card2); border: 2px solid transparent; border-radius: 12px; padding: 12px; text-align: center; cursor: pointer; }
+  .modal-act-btn.selected { border-color: var(--accent); }
+  .modal-act-btn .emoji { font-size: 20px; }
+  .modal-act-btn .lbl { font-size: 12px; margin-top: 4px; }
+
+  input[type=number], input[type=date] {
+    background: var(--card2); border: none; border-radius: 12px;
+    padding: 14px; color: var(--text); font-size: 16px; width: 100%;
+    outline: none; margin-bottom: 12px;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+  .btn { background: var(--accent); color: #000; border: none; border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; }
+  .btn-ghost { background: var(--card2); color: var(--text); border: none; border-radius: 14px; padding: 13px; font-size: 15px; width: 100%; cursor: pointer; margin-top: 8px; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; margin: 16px 0 8px; }
+
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: 600; font-size: 14px; opacity: 0; transition: opacity .3s; z-index: 300; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- PAGES -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div class="hero-label">Сегодня заработано</div>
+    <div class="hero-money" id="today-money">0.00 zl</div>
+    <div class="hero-sub">За неделю: <b id="week-money">0.00 zl</b></div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-row" style="margin-bottom:8px">
+      <span style="font-size:13px;color:var(--text2)">Цель на день</span>
+      <span style="font-size:13px;font-weight:600" id="goal-label">0 / 250 zl</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="goal-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="section-title">Быстрое добавление</div>
+  <div class="actions-grid" id="actions-grid"></div>
+
+  <div class="section-title">Сегодня</div>
+  <div class="card" id="today-list"></div>
+</div>
+
+<div id="page-history" class="page">
+  <div class="section-title">История по дням</div>
+  <div id="history-list"></div>
+</div>
+
+<div id="page-stats" class="page">
+  <div class="section-title">Эта неделя</div>
+  <div class="card">
+    <div class="chart" id="week-chart"></div>
+  </div>
+
+  <div class="section-title">Общая статистика</div>
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <div class="section-title">Недели</div>
+  <div id="weeks-list"></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('home',this)">
+    <span class="icon">🏠</span>Главная
+  </button>
+  <button class="nav-btn" onclick="openManual()">
+    <span class="icon">✏️</span>Добавить
+  </button>
+  <button class="nav-btn" onclick="showPage('history',this)">
+    <span class="icon">📋</span>История
+  </button>
+  <button class="nav-btn" onclick="showPage('stats',this)">
+    <span class="icon">📈</span>Статистика
+  </button>
+</nav>
+
+<!-- MODAL: ДОБАВИТЬ ВРУЧНУЮ -->
+<div class="modal" id="modal-manual">
+  <div class="modal-sheet">
+    <div class="modal-title">✏️ Добавить запись</div>
+    <div class="modal-actions" id="modal-actions"></div>
+    <input type="date" id="manual-date">
+    <input type="number" id="manual-count" placeholder="Количество" min="1" max="999">
+    <button class="btn" onclick="submitManual()">Добавить</button>
+    <button class="btn-ghost" onclick="closeManual()">Отмена</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BACKEND = "BACKEND_URL_PLACEHOLDER";
+const GOAL = 250;
+
+const tg = window.Telegram?.WebApp;
+tg?.expand();
+tg?.setHeaderColor?.("#0f0f0f");
+tg?.setBackgroundColor?.("#0f0f0f");
+
+const initData = tg?.initData || "dev";
+
+const ACTIONS = {};
+let selectedAction = null;
+
+async function api(path, method="GET", body=null) {
+  const res = await fetch(BACKEND + path, {
+    method,
+    headers: { "Content-Type":"application/json", "x-init-data": initData },
+    body: body ? JSON.stringify(body) : null,
+  });
+  return res.json();
+}
+
+function fmtDate(str) {
+  const [y,m,d] = str.split("-");
+  const names = ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"];
+  const day = new Date(y,m-1,d).getDay();
+  return `${names[day]}, ${d}.${m}.${y}`;
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+// ── PAGES ──────────────────────────────────────────────
+
+function showPage(name, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+  if(btn) btn.classList.add("active");
+  if(name==="home") loadHome();
+  if(name==="history") loadHistory();
+  if(name==="stats") loadStats();
+}
+
+// ── HOME ───────────────────────────────────────────────
+
+async function loadHome() {
+  const [summary] = await Promise.all([api("/summary")]);
+  document.getElementById("today-money").textContent = summary.today_money.toFixed(2) + " zl";
+  document.getElementById("week-money").textContent = summary.week_money.toFixed(2) + " zl";
+
+  const pct = Math.min(summary.today_money / GOAL * 100, 100);
+  document.getElementById("goal-bar").style.width = pct + "%";
+  document.getElementById("goal-label").textContent = `${summary.today_money.toFixed(0)} / ${GOAL} zl`;
+
+  // Today breakdown
+  const list = document.getElementById("today-list");
+  const items = Object.entries(ACTIONS).filter(([k]) => summary.today[k] > 0);
+  if(items.length === 0) {
+    list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:20px">Пока ничего нет 👀</div>';
+  } else {
+    list.innerHTML = items.map(([k,info]) => {
+      const count = summary.today[k];
+      const money = (count * info.price).toFixed(2);
+      return `<div class="today-item">
+        <div class="today-emoji">${info.emoji}</div>
+        <div class="today-info">
+          <div class="today-name">${info.label}</div>
+          <div class="today-count">${count} шт × ${info.price} zl</div>
+        </div>
+        <div class="today-money">${money} zl</div>
+      </div>`;
+    }).join("");
+  }
+}
+
+async function quickAdd(action) {
+  await api("/entry", "POST", { date: todayStr(), action, count: 1 });
+  tg?.HapticFeedback?.impactOccurred("light");
+  const info = ACTIONS[action];
+  showToast(`${info.emoji} +${info.price} zl`);
+  loadHome();
+}
+
+// ── HISTORY ────────────────────────────────────────────
+
+async function loadHistory() {
+  const days = await api("/days");
+  const el = document.getElementById("history-list");
+  if(!days.length) {
+    el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:40px">Нет записей</div>';
+    return;
+  }
+  el.innerHTML = days.map(day => {
+    const items = Object.entries(ACTIONS).filter(([k]) => day.data[k] > 0);
+    return `<div class="day-block">
+      <div class="day-header">
+        <div class="day-date">${fmtDate(day.date)}</div>
+        <div class="day-total">${day.total.toFixed(2)} zl</div>
+      </div>
+      ${items.map(([k,info]) => {
+        const c = day.data[k];
+        return `<div class="day-row"><span>${info.emoji} ${info.label}</span><span>${c} шт = ${(c*info.price).toFixed(2)} zl</span></div>`;
+      }).join("")}
+    </div>`;
+  }).join("");
+}
+
+// ── STATS ──────────────────────────────────────────────
+
+async function loadStats() {
+  const stats = await api("/stats");
+
+  // Week chart
+  const chart = document.getElementById("week-chart");
+  const today = todayStr();
+  const todayDate = new Date(today);
+  const monday = new Date(todayDate);
+  monday.setDate(todayDate.getDate() - todayDate.getDay() + (todayDate.getDay()===0?-6:1));
+
+  const weekDays = [];
+  for(let i=0;i<7;i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate()+i);
+    if(d > todayDate) break;
+    weekDays.push(d.toISOString().slice(0,10));
+  }
+
+  const weekMap = {};
+  (stats.weeks||[]).forEach(w => {
+    // find days in this week
+  });
+
+  const days = await api("/days?from_date=" + weekDays[0] + "&to_date=" + today);
+  const dayMap = {};
+  days.forEach(d => dayMap[d.date] = d.total);
+  const maxVal = Math.max(...weekDays.map(d => dayMap[d]||0), 1);
+  const labels = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+  chart.innerHTML = weekDays.map((d,i) => {
+    const val = dayMap[d] || 0;
+    const h = Math.max(val / maxVal * 100, 4);
+    const isToday = d === today;
+    return `<div class="bar-wrap">
+      <div style="font-size:9px;color:var(--text2)">${val>0?val.toFixed(0):""}</div>
+      <div class="bar${isToday?" today-bar":""}" style="height:${h}%"></div>
+      <div class="bar-label">${labels[i]}</div>
+    </div>`;
+  }).join("");
+
+  // Stat cards
+  const grid = document.getElementById("stat-grid");
+  grid.innerHTML = `
+    <div class="stat-card"><div class="stat-val">${(stats.total_all||0).toFixed(0)} zl</div><div class="stat-label">Всего заработано</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.total_days||0}</div><div class="stat-label">Рабочих дней</div></div>
+    <div class="stat-card"><div class="stat-val">${(stats.avg_day||0).toFixed(0)} zl</div><div class="stat-label">Средний день</div></div>
+    <div class="stat-card"><div class="stat-val">${stats.best_day ? stats.best_day.money.toFixed(0)+" zl" : "—"}</div><div class="stat-label">Лучший день${stats.best_day ? "<br><span style='font-size:10px;color:var(--text2)'>"+fmtDate(stats.best_day.date)+"</span>" : ""}</div></div>
+  `;
+
+  // Weeks list
+  const wl = document.getElementById("weeks-list");
+  wl.innerHTML = (stats.weeks||[]).slice(0,8).map(w => {
+    const d = new Date(w.monday);
+    const end = new Date(d); end.setDate(d.getDate()+6);
+    const fmt = d2 => `${String(d2.getDate()).padStart(2,"0")}.${String(d2.getMonth()+1).padStart(2,"0")}`;
+    const pct = Math.min(w.total/GOAL/7*100,100);
+    return `<div class="card" style="margin-bottom:8px">
+      <div class="card-row"><span style="font-size:14px">${fmt(d)} — ${fmt(end)}</span><span style="font-weight:700;color:var(--accent)">${w.total.toFixed(2)} zl</span></div>
+      <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+}
+
+// ── MANUAL ─────────────────────────────────────────────
+
+function openManual() {
+  document.getElementById("modal-manual").classList.add("open");
+  document.getElementById("manual-date").value = todayStr();
+  document.getElementById("manual-count").value = "";
+  selectedAction = null;
+  document.querySelectorAll(".modal-act-btn").forEach(b => b.classList.remove("selected"));
+}
+
+function closeManual() {
+  document.getElementById("modal-manual").classList.remove("open");
+}
+
+function selectAction(key) {
+  selectedAction = key;
+  document.querySelectorAll(".modal-act-btn").forEach(b => b.classList.remove("selected"));
+  document.getElementById("mact-"+key).classList.add("selected");
+}
+
+async function submitManual() {
+  if(!selectedAction) { showToast("Выбери тип"); return; }
+  const count = parseInt(document.getElementById("manual-count").value);
+  if(!count || count<=0) { showToast("Введи количество"); return; }
+  const date = document.getElementById("manual-date").value;
+  await api("/entry","POST",{date,action:selectedAction,count});
+  closeManual();
+  tg?.HapticFeedback?.impactOccurred("medium");
+  const info = ACTIONS[selectedAction];
+  showToast(`✅ ${info.emoji} ${count} шт = ${(count*info.price).toFixed(2)} zl`);
+  loadHome();
+}
+
+// ── INIT ───────────────────────────────────────────────
+
+async function init() {
+  const actionsData = await api("/actions");
+  Object.assign(ACTIONS, actionsData);
+
+  // Build quick buttons
+  const grid = document.getElementById("actions-grid");
+  grid.innerHTML = Object.entries(ACTIONS).map(([k,info]) =>
+    `<button class="action-btn" onclick="quickAdd('${k}')">
+      <div class="ab-emoji">${info.emoji}</div>
+      <div class="ab-label">${info.label}</div>
+      <div class="ab-price">+${info.price} zl</div>
+    </button>`
+  ).join("");
+
+  // Build modal actions
+  const ma = document.getElementById("modal-actions");
+  ma.innerHTML = Object.entries(ACTIONS).map(([k,info]) =>
+    `<div class="modal-act-btn" id="mact-${k}" onclick="selectAction('${k}')">
+      <div class="emoji">${info.emoji}</div>
+      <div class="lbl">${info.label}</div>
+    </div>`
+  ).join("");
+
+  loadHome();
+}
+
+init();
+</script>
+</body>
+</html>
