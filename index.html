@@ -176,7 +176,7 @@
     <div class="modal-title">✏️ Добавить запись</div>
     <div class="modal-actions" id="modal-actions"></div>
     <input type="date" id="manual-date">
-    <input type="number" id="manual-count" placeholder="Количество" min="1" max="999">
+    <input type="number" id="manual-count" placeholder="Количество" min="1" max="999" inputmode="numeric" pattern="[0-9]*">
     <button class="btn" onclick="submitManual()">Добавить</button>
     <button class="btn-ghost" onclick="closeManual()">Отмена</button>
   </div>
