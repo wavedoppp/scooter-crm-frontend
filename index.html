@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Scooter CRM</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#30d158">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scooter CRM">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
   :root {
     --bg: #0f0f0f;
@@ -125,6 +131,20 @@
 </head>
 <body>
 
+<!-- LOGIN PAGE -->
+<div id="page-login" style="display:none; position:fixed; inset:0; background:#0f0f0f; z-index:1000; flex-direction:column; align-items:center; justify-content:center; padding:32px;">
+  <div style="font-size:48px; margin-bottom:16px;">🛴</div>
+  <div style="font-size:24px; font-weight:700; margin-bottom:8px;">Scooter CRM</div>
+  <div style="font-size:14px; color:#8e8e93; margin-bottom:32px; text-align:center;">Введи ключ доступа из Telegram бота<br>(/getkey)</div>
+  <input id="key-input" type="text" placeholder="XXXX-XXXX" maxlength="9"
+    style="background:#1c1c1e; border:none; border-radius:12px; padding:16px; color:#fff; font-size:20px; font-family:monospace; text-align:center; width:100%; max-width:280px; outline:none; letter-spacing:2px; margin-bottom:16px; text-transform:uppercase;">
+  <button onclick="submitKey()"
+    style="background:#30d158; color:#000; border:none; border-radius:14px; padding:15px; font-size:16px; font-weight:600; width:100%; max-width:280px; cursor:pointer;">
+    Войти
+  </button>
+  <div id="key-error" style="color:#ff453a; font-size:13px; margin-top:12px; display:none;">Неверный ключ. Получи новый через /getkey</div>
+</div>
+
 <!-- PAGES -->
 <div id="page-home" class="page active">
   <div class="hero">
@@ -215,18 +235,86 @@ tg?.expand();
 tg?.setHeaderColor?.("#0f0f0f");
 tg?.setBackgroundColor?.("#0f0f0f");
 
-const initData = tg?.initData || "dev";
-
 const ACTIONS = {};
 let selectedAction = null;
+let currentUserId = null;
 
 async function api(path, method="GET", body=null) {
-  const res = await fetch(BACKEND + path, {
-    method,
-    headers: { "Content-Type":"application/json", "x-init-data": initData },
-    body: body ? JSON.stringify(body) : null,
-  });
+  const headers = {"Content-Type":"application/json"};
+  if (tg?.initData && tg.initData !== '') {
+    headers['x-init-data'] = tg.initData;
+  } else {
+    const uid = localStorage.getItem('crm_user_id');
+    if (uid) headers['x-init-data'] = 'bot_' + uid;
+    else headers['x-init-data'] = 'dev';
+  }
+  const opts = {method, headers};
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(BACKEND + path, opts);
   return res.json();
+}
+
+async function verifyKey(key) {
+  try {
+    const r = await fetch(BACKEND + '/auth/verify-key', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({key})
+    });
+    if (!r.ok) return false;
+    const data = await r.json();
+    if (data.ok) {
+      currentUserId = data.user_id;
+      localStorage.setItem('crm_key', key);
+      localStorage.setItem('crm_user_id', data.user_id);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+async function submitKey() {
+  const key = document.getElementById('key-input').value.trim().toUpperCase();
+  if (key.length !== 9) return;
+  document.getElementById('key-error').style.display = 'none';
+  const ok = await verifyKey(key);
+  if (ok) {
+    document.getElementById('page-login').style.display = 'none';
+    initApp();
+  } else {
+    document.getElementById('key-error').style.display = 'block';
+  }
+}
+
+async function initAuth() {
+  if (tg?.initData && tg.initData !== '') {
+    // Inside Telegram — use initData as before
+    document.getElementById('page-login').style.display = 'none';
+    initApp();
+    return;
+  }
+
+  // PWA mode — check saved key
+  const savedKey = localStorage.getItem('crm_key');
+  if (savedKey) {
+    const ok = await verifyKey(savedKey);
+    if (ok) { initApp(); return; }
+    localStorage.removeItem('crm_key');
+    localStorage.removeItem('crm_user_id');
+  }
+
+  // Show login screen
+  const loginPage = document.getElementById('page-login');
+  loginPage.style.display = 'flex';
+  document.getElementById('key-input').addEventListener('input', function() {
+    let v = this.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8);
+    if(v.length > 4) v = v.slice(0,4) + '-' + v.slice(4);
+    this.value = v;
+  });
+}
+
+function initApp() {
+  init();
 }
 
 function fmtDate(str) {
@@ -517,7 +605,10 @@ async function init() {
   loadHome();
 }
 
-init();
+initAuth();
+</script>
+<script>
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 </script>
 </body>
 </html>
