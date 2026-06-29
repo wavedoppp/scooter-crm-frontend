@@ -452,17 +452,24 @@ function changeCount(key, delta) {
 }
 
 async function saveEditDay() {
-  // Сбрасываем день и записываем новые значения
-  await api("/day/reset", "POST", { date: editDate });
-  for(const [k, count] of Object.entries(editCounts)) {
-    if(count > 0) {
-      await api("/entry", "POST", { date: editDate, action: k, count });
-    }
+  const btn = document.querySelector('#modal-edit .btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = "⏳ Сохраняю...";
+
+  try {
+    await api("/day/save", "POST", { date: editDate, counts: editCounts });
+    closeEdit();
+    showToast("✅ День обновлён");
+    loadHistory();
+    if (editDate === new Date().toISOString().slice(0,10)) loadHome();
+    tg?.HapticFeedback?.impactOccurred("medium");
+  } catch(e) {
+    showToast("⚠️ Ошибка сохранения");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "💾 Сохранить";
   }
-  closeEdit();
-  showToast("✅ День обновлён");
-  loadHistory();
-  tg?.HapticFeedback?.impactOccurred("medium");
 }
 
 async function deleteDay(date) {
